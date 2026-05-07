@@ -1,0 +1,235 @@
+' ============================================================
+' PRESTO — Diagrammes UML
+' ============================================================
+
+
+' ============================================================
+' 1. USE CASE
+' ============================================================
+
+@startuml 1_use_case
+title Presto — Use Case
+
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Utilisateur" as U
+actor "Stripe" as ST
+actor "LLM Vision" as LLM
+actor "Modèle Image IA" as IMG
+
+rectangle "Authentification" {
+  usecase "S'inscrire" as UC1
+  usecase "Se connecter" as UC2
+  usecase "Réinitialiser mot de passe" as UC3
+}
+
+rectangle "Crédits" {
+  usecase "Consulter son solde" as UC4
+  usecase "Acheter des crédits" as UC5
+  usecase "Voir historique achats" as UC6
+}
+
+rectangle "Projet" {
+  usecase "Créer un projet" as UC7
+  usecase "Uploader une photo" as UC8
+  usecase "Choisir la verticale\n(Immobilier / Objet)" as UC9
+  usecase "Choisir une suggestion IA\nou saisir un mini prompt" as UC10
+  usecase "Lancer la transformation" as UC11
+  usecase "Visualiser avant / après" as UC12
+  usecase "Télécharger la photo HD" as UC13
+  usecase "Régénérer le résultat" as UC14
+  usecase "Consulter ses projets" as UC15
+  usecase "Supprimer un projet" as UC16
+}
+
+rectangle "Pipeline IA" {
+  usecase "Analyser la photo" as UC17
+  usecase "Générer les suggestions" as UC18
+  usecase "Générer le prompt interne" as UC19
+  usecase "Générer l'image" as UC20
+}
+
+U --> UC1
+U --> UC2
+U --> UC3
+U --> UC4
+U --> UC5
+U --> UC6
+U --> UC7
+U --> UC8
+U --> UC9
+U --> UC10
+U --> UC11
+U --> UC12
+U --> UC13
+U --> UC14
+U --> UC15
+U --> UC16
+
+UC5 --> ST
+
+UC11 ..> UC17 : <<include>>
+UC17 ..> UC18 : <<include>>
+UC18 ..> UC19 : <<include>>
+UC19 ..> UC20 : <<include>>
+
+LLM --> UC17
+LLM --> UC18
+LLM --> UC19
+IMG --> UC20
+
+UC13 ..> UC4 : consomme 1 crédit
+UC14 ..> UC4 : consomme 1 crédit
+
+@enduml
+
+
+' ============================================================
+' 2. SÉQUENCE — Pipeline IA
+' ============================================================
+
+@startuml 2_sequence_pipeline
+title Presto — Séquence Pipeline IA
+
+actor Utilisateur as U
+participant "React\nFrontend" as FE
+participant "Express\nAPI" as API
+participant "BullMQ\nQueue" as Q
+participant "LLM Vision\n(Claude / GPT-4o)" as LLM
+participant "Modèle Image\n(Fal.ai / Replicate)" as IMG
+participant "Cloudflare R2\nStockage" as R2
+database "PostgreSQL" as DB
+
+U -> FE : Upload photo +\nchoix verticale
+FE -> API : POST /projects\n(photo, verticale)
+API -> R2 : Stocke photo originale
+API -> DB : Crée projet (status: pending)
+API -> Q : Enqueue job(projectId)
+API --> FE : { projectId, status: pending }
+FE --> U : Affiche loader
+
+Q -> API : Process job(projectId)
+
+API -> LLM : Envoie photo +\nverticale (IMMO / OBJET)
+note right of LLM
+  IMMOBILIER :
+  détecte type de pièce,
+  volumes, luminosité, style
+  ---
+  OBJET :
+  détecte type d'objet,
+  couleur, matière
+end note
+LLM --> API : Analyse + 3-4 suggestions
+
+API -> DB : Stocke suggestions
+API --> FE : SSE — suggestions prêtes
+FE --> U : Affiche suggestions + mini prompt
+
+U -> FE : Choisit suggestion\nou saisit prompt libre
+FE -> API : POST /projects/:id/transform\n(suggestion / prompt)
+
+API -> LLM : Analyse + demande utilisateur
+note right of LLM
+  Génère prompt optimisé
+  selon la verticale :
+  IMMO → respecte volumes
+  OBJET → préserve l'objet
+end note
+LLM --> API : Prompt interne généré
+
+API -> IMG : img2img / inpainting\n(photo ref + prompt)
+IMG --> API : Image générée
+
+API -> R2 : Stocke image générée
+API -> DB : Update projet\n(status: done, imageUrl)
+API -> DB : Décremente 1 crédit
+
+API --> FE : SSE — image prête (imageUrl)
+FE --> U : Affiche slider avant / après
+
+U -> FE : Télécharge HD
+FE -> API : GET /projects/:id/download
+API --> FE : URL signée R2
+FE --> U : Téléchargement HD
+
+@enduml
+
+
+' ============================================================
+' 3. ENTITÉS — Modèle de données
+' ============================================================
+
+@startuml 3_entity
+title Presto — Modèle de données
+
+entity "User" as USER {
+  * id : uuid <<PK>>
+  --
+  * email : string <<unique>>
+  * password_hash : string
+  * created_at : timestamp
+  * updated_at : timestamp
+}
+
+entity "CreditWallet" as WALLET {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  * balance : integer
+  * updated_at : timestamp
+}
+
+entity "CreditTransaction" as TRANS {
+  * id : uuid <<PK>>
+  --
+  * wallet_id : uuid <<FK>>
+  * amount : integer
+  * type : enum\n(purchase, consumption)
+  * stripe_payment_id : string
+  * created_at : timestamp
+}
+
+entity "Project" as PROJECT {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  * title : string
+  * vertical : enum\n(immobilier, objet)
+  * status : enum\n(pending, analyzing,\nsuggesting, processing,\ndone, error)
+  * original_image_url : string
+  * result_image_url : string
+  * created_at : timestamp
+  * updated_at : timestamp
+}
+
+entity "Suggestion" as SUGGESTION {
+  * id : uuid <<PK>>
+  --
+  * project_id : uuid <<FK>>
+  * label : string
+  * generated_prompt : string
+  * selected : boolean
+}
+
+entity "Transformation" as TRANSFO {
+  * id : uuid <<PK>>
+  --
+  * project_id : uuid <<FK>>
+  * suggestion_id : uuid <<FK>>
+  * user_prompt : string
+  * internal_prompt : string
+  * llm_analysis : json
+  * model_used : string
+  * created_at : timestamp
+}
+
+USER ||--|| WALLET : "possède"
+WALLET ||--o{ TRANS : "historique"
+USER ||--o{ PROJECT : "crée"
+PROJECT ||--o{ SUGGESTION : "génère"
+PROJECT ||--o{ TRANSFO : "produit"
+SUGGESTION ||--o| TRANSFO : "utilisée dans"
+
+@enduml
