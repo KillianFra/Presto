@@ -24,9 +24,6 @@ export function createApp(options: AppOptions = {}): Express {
   app.use(express.json({ limit: '1mb' }))
   app.use(createRequestLogger(logger))
 
-  app.get('/', (_req, res) => {
-    res.status(200).json({ message: 'Presto API' })
-  })
   app.use('/api/health', createHealthRouter())
 
   app.use(notFoundHandler)
