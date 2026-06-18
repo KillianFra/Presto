@@ -1,8 +1,8 @@
 import { Router, type NextFunction, type Request, type Response } from 'express'
-import type { AppConfig } from '../../config/env.js'
-import { AuthError } from './auth.errors.js'
-import { clearSessionCookie, readCookie, writeSessionCookie } from './cookies.js'
-import type { AuthService } from './auth.types.js'
+import type { AppConfig } from '../config/env.js'
+import { AuthError } from '../modules/auth/auth.errors.js'
+import { clearSessionCookie, readCookie, writeSessionCookie } from '../modules/auth/cookies.js'
+import type { AuthService } from '../modules/auth/auth.types.js'
 
 interface AuthRouterOptions {
   authService: AuthService
