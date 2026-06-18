@@ -20,6 +20,9 @@ describe('Presto API foundation', () => {
         nodeEnv: 'test',
         port: 0,
         corsOrigin: 'http://localhost:5173',
+        sessionCookieName: 'presto_session',
+        sessionTtlDays: 7,
+        passwordResetTtlMinutes: 60,
       },
       logger: silentLogger,
     })
