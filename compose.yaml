@@ -22,6 +22,7 @@ services:
       target: migration
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://presto:presto@db:5432/presto?schema=public}
+      DIRECT_URL: ${DIRECT_URL:-postgresql://presto:presto@db:5432/presto?schema=public}
     depends_on:
       db:
         condition: service_healthy
