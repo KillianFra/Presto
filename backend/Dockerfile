@@ -4,6 +4,7 @@ FROM node:22-alpine AS base
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma
 
 FROM base AS dependencies
 RUN pnpm install --frozen-lockfile
@@ -20,7 +21,7 @@ COPY prisma ./prisma
 CMD ["pnpm", "exec", "prisma", "migrate", "deploy"]
 
 FROM build AS production-dependencies
-RUN pnpm prune --prod
+RUN pnpm prune --prod --ignore-scripts
 
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production
