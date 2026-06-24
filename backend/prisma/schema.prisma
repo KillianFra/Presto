@@ -1,0 +1,119 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ProjectVertical {
+  IMMOBILIER
+  OBJET
+}
+
+enum ProjectStatus {
+  DRAFT
+  PENDING_ANALYSIS
+  ANALYZING
+  SUGGESTIONS_READY
+  PROCESSING
+  DONE
+  ERROR
+  DELETED
+}
+
+enum AssetKind {
+  ORIGINAL
+  GENERATED
+}
+
+enum TransformationStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  projects     Project[]
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Project {
+  id              String           @id @default(uuid()) @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  title           String           @db.VarChar(160)
+  vertical        ProjectVertical
+  status          ProjectStatus    @default(DRAFT)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets          Asset[]
+  suggestions     Suggestion[]
+  transformations Transformation[]
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt])
+  @@map("projects")
+}
+
+model Asset {
+  id               String          @id @default(uuid()) @db.Uuid
+  projectId        String          @map("project_id") @db.Uuid
+  transformationId String?         @unique @map("transformation_id") @db.Uuid
+  kind             AssetKind
+  storageKey       String          @unique @map("storage_key")
+  mimeType         String          @map("mime_type") @db.VarChar(120)
+  byteSize         Int?            @map("byte_size")
+  expiresAt        DateTime?       @map("expires_at")
+  deletedAt        DateTime?       @map("deleted_at")
+  project          Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  transformation   Transformation? @relation("TransformationResult", fields: [transformationId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  @@index([projectId, kind])
+  @@index([expiresAt])
+  @@map("assets")
+}
+
+model Suggestion {
+  id              String           @id @default(uuid()) @db.Uuid
+  projectId       String           @map("project_id") @db.Uuid
+  label           String           @db.VarChar(160)
+  generatedPrompt String           @map("generated_prompt")
+  selected        Boolean          @default(false)
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  transformations Transformation[]
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@map("suggestions")
+}
+
+model Transformation {
+  id             String               @id @default(uuid()) @db.Uuid
+  projectId      String               @map("project_id") @db.Uuid
+  suggestionId   String?              @map("suggestion_id") @db.Uuid
+  userPrompt     String?              @map("user_prompt")
+  internalPrompt String?              @map("internal_prompt")
+  llmAnalysis    Json?                @map("llm_analysis")
+  modelUsed      String?              @map("model_used") @db.VarChar(120)
+  status         TransformationStatus @default(PENDING)
+  errorMessage   String?              @map("error_message")
+  project        Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  suggestion     Suggestion?          @relation(fields: [suggestionId], references: [id], onDelete: SetNull)
+  resultAsset    Asset?               @relation("TransformationResult")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  @@index([projectId, createdAt])
+  @@index([suggestionId])
+  @@map("transformations")
+}
