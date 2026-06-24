@@ -5,6 +5,12 @@ export interface AppConfig {
   sessionCookieName: string
   sessionTtlDays: number
   passwordResetTtlMinutes: number
+  supabaseUrl: string
+  supabaseServiceRoleKey: string
+  supabaseStorageBucket: string
+  signedDownloadTtlSeconds: number
+  originalAssetTtlDays: number
+  maxImageByteSize: number
 }
 
 function parsePort(value: string | undefined): number {
@@ -39,5 +45,15 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): Readonly<AppCon
       60,
       'PASSWORD_RESET_TTL_MINUTES',
     ),
+    supabaseUrl: env.SUPABASE_URL || '',
+    supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY || '',
+    supabaseStorageBucket: env.SUPABASE_STORAGE_BUCKET || 'presto-assets',
+    signedDownloadTtlSeconds: parsePositiveInteger(
+      env.SIGNED_DOWNLOAD_TTL_SECONDS,
+      900,
+      'SIGNED_DOWNLOAD_TTL_SECONDS',
+    ),
+    originalAssetTtlDays: parsePositiveInteger(env.ORIGINAL_ASSET_TTL_DAYS, 30, 'ORIGINAL_ASSET_TTL_DAYS'),
+    maxImageByteSize: parsePositiveInteger(env.MAX_IMAGE_BYTE_SIZE, 10 * 1024 * 1024, 'MAX_IMAGE_BYTE_SIZE'),
   })
 }

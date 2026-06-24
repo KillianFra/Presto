@@ -11,6 +11,12 @@ describe('environment configuration', () => {
       sessionCookieName: 'presto_session',
       sessionTtlDays: 7,
       passwordResetTtlMinutes: 60,
+      supabaseUrl: '',
+      supabaseServiceRoleKey: '',
+      supabaseStorageBucket: 'presto-assets',
+      signedDownloadTtlSeconds: 900,
+      originalAssetTtlDays: 30,
+      maxImageByteSize: 10 * 1024 * 1024,
     })
   })
 
@@ -30,6 +36,21 @@ describe('environment configuration', () => {
     assert.throws(
       () => getConfig({ PASSWORD_RESET_TTL_MINUTES: '-1' }),
       /PASSWORD_RESET_TTL_MINUTES must be a positive integer/,
+    )
+  })
+
+  it('rejects invalid storage settings', () => {
+    assert.throws(
+      () => getConfig({ SIGNED_DOWNLOAD_TTL_SECONDS: '0' }),
+      /SIGNED_DOWNLOAD_TTL_SECONDS must be a positive integer/,
+    )
+    assert.throws(
+      () => getConfig({ ORIGINAL_ASSET_TTL_DAYS: '-1' }),
+      /ORIGINAL_ASSET_TTL_DAYS must be a positive integer/,
+    )
+    assert.throws(
+      () => getConfig({ MAX_IMAGE_BYTE_SIZE: 'invalid' }),
+      /MAX_IMAGE_BYTE_SIZE must be a positive integer/,
     )
   })
 })
