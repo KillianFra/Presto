@@ -20,9 +20,18 @@ describe('Presto API foundation', () => {
         nodeEnv: 'test',
         port: 0,
         corsOrigin: 'http://localhost:5173',
-      },
-      logger: silentLogger,
-    })
+          sessionCookieName: 'presto_session',
+          sessionTtlDays: 7,
+          passwordResetTtlMinutes: 60,
+          supabaseUrl: 'https://example.supabase.co',
+          supabaseServiceRoleKey: 'service-role-key',
+          supabaseStorageBucket: 'presto-assets',
+          signedDownloadTtlSeconds: 900,
+          originalAssetTtlDays: 30,
+          maxImageByteSize: 10 * 1024 * 1024,
+        },
+        logger: silentLogger,
+      })
 
     await new Promise<void>((resolve, reject) => {
       server = app.listen(0, '127.0.0.1', (error?: Error) => {
