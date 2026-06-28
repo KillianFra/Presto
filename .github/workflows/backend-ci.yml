@@ -1,0 +1,67 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - staging
+      - main
+  push:
+    branches:
+      - dev
+      - staging
+      - main
+      - 'feat/**'
+      - 'codex/**'
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: postgresql://presto:presto@localhost:5432/presto?schema=public
+      DIRECT_URL: postgresql://presto:presto@localhost:5432/presto?schema=public
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.5.2
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: pnpm run db:generate
+
+      - name: Validate Prisma schema
+        working-directory: backend
+        run: pnpm run db:validate
+
+      - name: Typecheck
+        working-directory: backend
+        run: pnpm run typecheck
+
+      - name: Test
+        working-directory: backend
+        run: pnpm test
+
+      - name: Build
+        working-directory: backend
+        run: pnpm run build
+
+      - name: Validate Docker Compose
+        run: docker compose -f compose.yaml config --quiet
