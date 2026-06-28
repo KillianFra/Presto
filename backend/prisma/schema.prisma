@@ -36,6 +36,28 @@ enum TransformationStatus {
   FAILED
 }
 
+enum CreditTransactionType {
+  PURCHASE
+  CONSUMPTION
+  REFUND
+  ADJUSTMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum ProjectEventType {
+  PROJECT_UPDATED
+  SUGGESTIONS_READY
+  TRANSFORMATION_UPDATED
+  ASSET_CREATED
+  CREDITS_UPDATED
+}
+
 model User {
   id                  String               @id @default(uuid()) @db.Uuid
   email               String               @unique
@@ -43,6 +65,9 @@ model User {
   projects            Project[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  creditWallet        CreditWallet?
+  creditTransactions  CreditTransaction[]
+  payments            Payment[]
   createdAt           DateTime             @default(now()) @map("created_at")
   updatedAt           DateTime             @updatedAt @map("updated_at")
 
@@ -87,6 +112,7 @@ model Project {
   assets          Asset[]
   suggestions     Suggestion[]
   transformations Transformation[]
+  events          ProjectEvent[]
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
@@ -117,7 +143,7 @@ model Suggestion {
   id              String           @id @default(uuid()) @db.Uuid
   projectId       String           @map("project_id") @db.Uuid
   label           String           @db.VarChar(160)
-  generatedPrompt String           @map("generated_prompt")
+  generatedPrompt String           @map("generated_prompt") @db.Text
   selected        Boolean          @default(false)
   project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   transformations Transformation[]
@@ -128,22 +154,91 @@ model Suggestion {
 }
 
 model Transformation {
-  id             String               @id @default(uuid()) @db.Uuid
-  projectId      String               @map("project_id") @db.Uuid
-  suggestionId   String?              @map("suggestion_id") @db.Uuid
-  userPrompt     String?              @map("user_prompt")
-  internalPrompt String?              @map("internal_prompt")
-  llmAnalysis    Json?                @map("llm_analysis")
-  modelUsed      String?              @map("model_used") @db.VarChar(120)
-  status         TransformationStatus @default(PENDING)
-  errorMessage   String?              @map("error_message")
-  project        Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  suggestion     Suggestion?          @relation(fields: [suggestionId], references: [id], onDelete: SetNull)
-  resultAsset    Asset?               @relation("TransformationResult")
-  createdAt      DateTime             @default(now()) @map("created_at")
-  updatedAt      DateTime             @updatedAt @map("updated_at")
+  id                String                @id @default(uuid()) @db.Uuid
+  projectId         String                @map("project_id") @db.Uuid
+  suggestionId      String?               @map("suggestion_id") @db.Uuid
+  userPrompt        String?               @map("user_prompt") @db.Text
+  internalPrompt    String                @map("internal_prompt") @db.Text
+  llmAnalysis       String?               @map("llm_analysis") @db.Text
+  status            TransformationStatus  @default(PENDING)
+  providerName      String?               @map("provider_name") @db.VarChar(80)
+  providerRequestId String?               @map("provider_request_id") @db.VarChar(160)
+  costCents         Int?                  @map("cost_cents")
+  durationMs        Int?                  @map("duration_ms")
+  aiDisclosure      String?               @map("ai_disclosure") @db.VarChar(200)
+  errorMessage      String?               @map("error_message")
+  project           Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  suggestion        Suggestion?           @relation(fields: [suggestionId], references: [id], onDelete: SetNull)
+  resultAsset       Asset?                @relation("TransformationResult")
+  creditTransaction CreditTransaction?
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
 
   @@index([projectId, createdAt])
   @@index([suggestionId])
   @@map("transformations")
+}
+
+model CreditWallet {
+  id           String              @id @default(uuid()) @db.Uuid
+  userId       String              @unique @map("user_id") @db.Uuid
+  balance      Int                 @default(0)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions CreditTransaction[]
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  @@map("credit_wallets")
+}
+
+model CreditTransaction {
+  id               String                @id @default(uuid()) @db.Uuid
+  userId           String                @map("user_id") @db.Uuid
+  walletId         String                @map("wallet_id") @db.Uuid
+  transformationId String?               @unique @map("transformation_id") @db.Uuid
+  paymentId        String?               @map("payment_id") @db.Uuid
+  type             CreditTransactionType
+  amount           Int
+  balanceAfter     Int                   @map("balance_after")
+  reason           String                @db.VarChar(200)
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet           CreditWallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  transformation   Transformation?       @relation(fields: [transformationId], references: [id], onDelete: SetNull)
+  payment          Payment?              @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([walletId])
+  @@index([paymentId])
+  @@map("credit_transactions")
+}
+
+model Payment {
+  id                      String              @id @default(uuid()) @db.Uuid
+  userId                  String              @map("user_id") @db.Uuid
+  status                  PaymentStatus       @default(PENDING)
+  amountCents             Int                 @map("amount_cents")
+  credits                 Int
+  checkoutUrl             String?             @map("checkout_url")
+  stripeCheckoutSessionId String?             @unique @map("stripe_checkout_session_id")
+  stripeEventId           String?             @unique @map("stripe_event_id")
+  user                    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions            CreditTransaction[]
+  createdAt               DateTime            @default(now()) @map("created_at")
+  updatedAt               DateTime            @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt])
+  @@map("payments")
+}
+
+model ProjectEvent {
+  id        String           @id @default(uuid()) @db.Uuid
+  projectId String           @map("project_id") @db.Uuid
+  type      ProjectEventType
+  payload   Json
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([projectId, createdAt])
+  @@map("project_events")
 }

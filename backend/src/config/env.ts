@@ -11,6 +11,16 @@ export interface AppConfig {
   signedDownloadTtlSeconds: number
   originalAssetTtlDays: number
   maxImageByteSize: number
+  transformationCreditCost: number
+  mockGeneratedImageMimeType: string
+  mockGeneratedImageByteSize: number
+  stripeWebhookSecret: string
+  stripeCheckoutBaseUrl: string
+  defaultCreditPackCredits: number
+  defaultCreditPackAmountCents: number
+  maintenanceSecret: string
+  rateLimitWindowMs: number
+  rateLimitMaxRequests: number
 }
 
 function parsePort(value: string | undefined): number {
@@ -55,5 +65,31 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): Readonly<AppCon
     ),
     originalAssetTtlDays: parsePositiveInteger(env.ORIGINAL_ASSET_TTL_DAYS, 30, 'ORIGINAL_ASSET_TTL_DAYS'),
     maxImageByteSize: parsePositiveInteger(env.MAX_IMAGE_BYTE_SIZE, 10 * 1024 * 1024, 'MAX_IMAGE_BYTE_SIZE'),
+    transformationCreditCost: parsePositiveInteger(
+      env.TRANSFORMATION_CREDIT_COST,
+      1,
+      'TRANSFORMATION_CREDIT_COST',
+    ),
+    mockGeneratedImageMimeType: env.MOCK_GENERATED_IMAGE_MIME_TYPE || 'image/png',
+    mockGeneratedImageByteSize: parsePositiveInteger(
+      env.MOCK_GENERATED_IMAGE_BYTE_SIZE,
+      512 * 1024,
+      'MOCK_GENERATED_IMAGE_BYTE_SIZE',
+    ),
+    stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET || '',
+    stripeCheckoutBaseUrl: env.STRIPE_CHECKOUT_BASE_URL || 'https://checkout.stripe.com/c/pay',
+    defaultCreditPackCredits: parsePositiveInteger(
+      env.DEFAULT_CREDIT_PACK_CREDITS,
+      10,
+      'DEFAULT_CREDIT_PACK_CREDITS',
+    ),
+    defaultCreditPackAmountCents: parsePositiveInteger(
+      env.DEFAULT_CREDIT_PACK_AMOUNT_CENTS,
+      990,
+      'DEFAULT_CREDIT_PACK_AMOUNT_CENTS',
+    ),
+    maintenanceSecret: env.MAINTENANCE_SECRET || '',
+    rateLimitWindowMs: parsePositiveInteger(env.RATE_LIMIT_WINDOW_MS, 60_000, 'RATE_LIMIT_WINDOW_MS'),
+    rateLimitMaxRequests: parsePositiveInteger(env.RATE_LIMIT_MAX_REQUESTS, 600, 'RATE_LIMIT_MAX_REQUESTS'),
   })
 }
