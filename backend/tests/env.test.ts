@@ -17,6 +17,16 @@ describe('environment configuration', () => {
       signedDownloadTtlSeconds: 900,
       originalAssetTtlDays: 30,
       maxImageByteSize: 10 * 1024 * 1024,
+      transformationCreditCost: 1,
+      mockGeneratedImageMimeType: 'image/png',
+      mockGeneratedImageByteSize: 512 * 1024,
+      stripeWebhookSecret: '',
+      stripeCheckoutBaseUrl: 'https://checkout.stripe.com/c/pay',
+      defaultCreditPackCredits: 10,
+      defaultCreditPackAmountCents: 990,
+      maintenanceSecret: '',
+      rateLimitWindowMs: 60_000,
+      rateLimitMaxRequests: 600,
     })
   })
 
@@ -51,6 +61,14 @@ describe('environment configuration', () => {
     assert.throws(
       () => getConfig({ MAX_IMAGE_BYTE_SIZE: 'invalid' }),
       /MAX_IMAGE_BYTE_SIZE must be a positive integer/,
+    )
+    assert.throws(
+      () => getConfig({ TRANSFORMATION_CREDIT_COST: '0' }),
+      /TRANSFORMATION_CREDIT_COST must be a positive integer/,
+    )
+    assert.throws(
+      () => getConfig({ RATE_LIMIT_MAX_REQUESTS: '0' }),
+      /RATE_LIMIT_MAX_REQUESTS must be a positive integer/,
     )
   })
 })

@@ -18,6 +18,16 @@ function createConfig(overrides: Partial<AppConfig> = {}): Readonly<AppConfig> {
     signedDownloadTtlSeconds: 900,
     originalAssetTtlDays: 30,
     maxImageByteSize: 10 * 1024 * 1024,
+    transformationCreditCost: 1,
+    mockGeneratedImageMimeType: 'image/png',
+    mockGeneratedImageByteSize: 512 * 1024,
+    stripeWebhookSecret: '',
+    stripeCheckoutBaseUrl: 'https://checkout.stripe.com/c/pay',
+    defaultCreditPackCredits: 10,
+    defaultCreditPackAmountCents: 990,
+    maintenanceSecret: '',
+    rateLimitWindowMs: 60_000,
+    rateLimitMaxRequests: 600,
     ...overrides,
   }
 }
